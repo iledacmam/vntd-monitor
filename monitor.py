@@ -17,7 +17,7 @@ COLLECTOR_SERVERS = {
 }
 
 KEYWORDS = [
-    "kupił", "kupiono", "sprzedano", "wiadomość", "oferta", "ofertę",
+    "sprzedan", "sprzedał", "kupił", "kupiono", "wiadomość", "oferta", "ofertę",
     "etykiet", "przesyłk", "zamówien", "nadaj", "paczkomat", "inpost"
 ]
 
@@ -128,7 +128,7 @@ def main():
                             break
 
                     sub_low = subject.lower()
-                    if any(w in sub_low for w in ["kupił", "kupiono", "sprzedano", "etykiet", "nadaj"]):
+                    if any(w in sub_low for w in ["sprzedan", "sprzedał", "kupił", "kupiono", "etykiet", "nadaj"]):
                         icon = "💰 SPRZEDANE!"
                     elif any(w in sub_low for w in ["ofert", "proponuje"]):
                         icon = "🏷️ NOWA OFERTA!"
