@@ -1,157 +1,284 @@
-import imaplib
 import email
 from email.header import decode_header
-import urllib.request
-import urllib.parse
+import html
+import imaplib
 import json
 import os
-import datetime
+import re
+import socket
+import urllib.parse
+import urllib.request
 
-COLLECTOR_SERVERS = {
-    "inbox.lv": "mail.inbox.lv",
-    "seznam.cz": "imap.seznam.cz",
-    "email.cz": "imap.seznam.cz",
-    "post.cz": "imap.seznam.cz",
-    "gmx.com": "imap.gmx.com",
-    "gmail.com": "imap.gmail.com"
+socket.setdefaulttimeout(20)
+
+IMAP_SERVERS = {
+    "wp.pl": "imap.wp.pl",
+    "o2.pl": "poczta.o2.pl",
+    "tlen.pl": "poczta.o2.pl",
+    "go2.pl": "poczta.o2.pl",
+    "interia.pl": "poczta.interia.pl",
+    "interia.eu": "poczta.interia.pl",
+    "poczta.fm": "poczta.interia.pl",
+    "vip.interia.pl": "poczta.interia.pl",
+    "1gb.pl": "poczta.interia.pl",
+    "2gb.pl": "poczta.interia.pl",
 }
 
-KEYWORDS = [
-    "sprzedan", "sprzedał", "kupił", "kupiono", "wiadomość", "oferta", "ofertę",
-    "etykiet", "przesyłk", "zamówien", "nadaj", "paczkomat", "inpost"
-]
 
-def decode_str(header_val):
-    if not header_val:
+def decode_mime_str(value):
+    if not value:
         return ""
-    decoded_parts = decode_header(header_val)
-    result = []
-    for content, encoding in decoded_parts:
-        if isinstance(content, bytes):
-            result.append(content.decode(encoding or "utf-8", errors="ignore"))
+    parts = decode_header(value)
+    decoded = []
+    for part, charset in parts:
+        if isinstance(part, bytes):
+            for enc in (charset, "utf-8", "iso-8859-2", "windows-1250", "latin-1"):
+                if not enc:
+                    continue
+                try:
+                    decoded.append(part.decode(enc, errors="replace"))
+                    break
+                except LookupError:
+                    continue
         else:
-            result.append(str(content))
-    return "".join(result)
+            decoded.append(str(part))
+    return "".join(decoded).strip()
 
-def extract_raw_text(msg):
-    parts_text = []
-    for k, v in msg.items():
-        parts_text.append(f"{k}: {decode_str(v)}")
+
+def clean_html_to_text(raw_html):
+    text = re.sub(r"(?is)<(script|style).*?>.*?</\1>", " ", raw_html)
+    text = re.sub(r"(?s)<[^>]+>", " ", text)
+    text = html.unescape(text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def extract_body(msg):
+    plain_parts = []
+    html_parts = []
+
     if msg.is_multipart():
         for part in msg.walk():
-            ctype = part.get_content_type()
-            if ctype in ("text/plain", "text/html"):
-                payload = part.get_payload(decode=True)
-                if payload:
-                    charset = part.get_content_charset() or "utf-8"
-                    parts_text.append(payload.decode(charset, errors="ignore"))
+            content_type = part.get_content_type()
+            disposition = str(part.get("Content-Disposition") or "")
+            if "attachment" in disposition.lower():
+                continue
+            payload = part.get_payload(decode=True)
+            if not payload:
+                continue
+            charset = part.get_content_charset() or "utf-8"
+            try:
+                text = payload.decode(charset, errors="replace")
+            except LookupError:
+                text = payload.decode("utf-8", errors="replace")
+
+            if content_type == "text/plain":
+                plain_parts.append(text)
+            elif content_type == "text/html":
+                html_parts.append(text)
     else:
         payload = msg.get_payload(decode=True)
         if payload:
-            charset = part.get_content_charset() or "utf-8"
-            parts_text.append(payload.decode(charset, errors="ignore"))
-    return "\n".join(parts_text).lower()
+            charset = msg.get_content_charset() or "utf-8"
+            try:
+                text = payload.decode(charset, errors="replace")
+            except LookupError:
+                text = payload.decode("utf-8", errors="replace")
+            if msg.get_content_type() == "text/html":
+                html_parts.append(text)
+            else:
+                plain_parts.append(text)
+
+    if plain_parts:
+        raw = "\n".join(plain_parts)
+        return re.sub(r"\s+", " ", raw).strip()
+    if html_parts:
+        return clean_html_to_text("\n".join(html_parts))
+    return ""
+
+
+def get_folders_to_scan(mail):
+    folders = ["INBOX"]
+    status, folder_list = mail.list()
+    if status == "OK" and folder_list:
+        for item in folder_list:
+            if not item:
+                continue
+            line = item.decode("utf-8", errors="replace")
+            match = re.search(r'"([^"]+)"\s*$', line)
+            folder_name = match.group(1) if match else line.split()[-1].strip('"')
+            lower_name = folder_name.lower()
+            if ("spam" in lower_name or "junk" in lower_name) and folder_name not in folders:
+                folders.append(folder_name)
+    return folders
+
 
 def send_telegram(token, chat_id, text):
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    data = urllib.parse.urlencode({"chat_id": chat_id, "text": text}).encode("utf-8")
-    req = urllib.request.Request(url, data=data)
-    urllib.request.urlopen(req, timeout=15)
+    data = urllib.parse.urlencode({
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": "true",
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=data, method="POST")
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        resp.read()
 
-def main():
-    tg_token = os.environ.get("TELEGRAM_TOKEN", "").strip()
-    tg_chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-    accounts_raw = os.environ.get("ACCOUNTS_JSON", "").strip()
-    event_name = os.environ.get("GITHUB_EVENT_NAME", "")
 
-    if not (tg_token and tg_chat_id and accounts_raw):
-        print("Brak sekretów w GitHub Secrets!")
-        return
+def is_vinted_message(sender, subject, body):
+    combined = f"{sender}\n{subject}\n{body[:1500]}".lower()
+    return "vinted" in combined
 
+
+def scan_mailbox(host, login_email, password, redirected_map=None, single_profile=None):
+    found_messages = []
+    mail = imaplib.IMAP4_SSL(host, 993)
     try:
-        config = json.loads(accounts_raw)
-        if isinstance(config, str):
-            config = json.loads(config)
-    except Exception as e:
-        err_msg = f"⚠️ Błąd składni w sekrecie ACCOUNTS_JSON (sprawdź przecinki i cudzysłowy):\n{e}"
-        print(err_msg)
-        if event_name == "workflow_dispatch":
-            send_telegram(tg_token, tg_chat_id, err_msg)
-        return
-
-    collector_email = config["collector_email"].strip()
-    collector_pass = config["collector_haslo"].strip()
-    domain = collector_email.split("@")[-1].lower()
-    imap_host = COLLECTOR_SERVERS.get(domain, f"imap.{domain}")
-    konta_map = {k.strip().lower(): v for k, v in config.get("konta", {}).items()}
-
-    try:
-        mail = imaplib.IMAP4_SSL(imap_host, 993, timeout=20)
-        mail.login(collector_email, collector_pass)
-
-        since_date = (datetime.date.today() - datetime.timedelta(days=2)).strftime("%d-%b-%Y")
-        found_count = 0
-
-        for folder in ["INBOX", "Spam", "INBOX.Spam", "Junk"]:
-            status_sel, _ = mail.select(folder)
-            if status_sel != "OK":
+        mail.login(login_email, password)
+        for folder in get_folders_to_scan(mail):
+            status, _ = mail.select(f'"{folder}"')
+            if status != "OK":
+                continue
+            status, data = mail.search(None, "UNSEEN")
+            if status != "OK" or not data or not data[0]:
                 continue
 
-            status, response = mail.search(None, f'(UNSEEN SINCE "{since_date}")')
-            if status != "OK" or not response[0]:
-                continue
-
-            for num in response[0].split():
+            for num in data[0].split():
                 res, msg_data = mail.fetch(num, "(BODY.PEEK[])")
                 if res != "OK" or not msg_data or not msg_data[0]:
                     continue
 
-                raw_bytes = msg_data[0][1]
-                msg = email.message_from_bytes(raw_bytes)
-                subject = decode_str(msg.get("Subject", "")).strip()
-                sender = decode_str(msg.get("From", "")).lower()
-                full_text_low = extract_raw_text(msg)
+                raw_email = msg_data[0][1]
+                msg = email.message_from_bytes(raw_email)
 
-                is_vinted = (
-                    "vinted" in sender
-                    or "vinted" in full_text_low
-                    or any(k in subject.lower() for k in KEYWORDS)
-                )
+                sender = decode_mime_str(msg.get("From"))
+                subject = decode_mime_str(msg.get("Subject"))
+                body = extract_body(msg)
 
-                if is_vinted:
-                    matched_label = "Nieznany profil (sprawdź adres w mailu)"
-                    matched_mail = "brak dopasowania"
-                    for acc_mail, acc_label in konta_map.items():
-                        if acc_mail in full_text_low:
-                            matched_label = acc_label
-                            matched_mail = acc_mail
+                if not is_vinted_message(sender, subject, body):
+                    continue
+
+                if single_profile:
+                    profile_label = f"{single_profile} ({login_email})"
+                else:
+                    routing_headers = " ".join([
+                        decode_mime_str(msg.get("To")),
+                        decode_mime_str(msg.get("Delivered-To")),
+                        decode_mime_str(msg.get("X-Original-To")),
+                        decode_mime_str(msg.get("X-Forwarded-To")),
+                        body[:1000],
+                    ]).lower()
+
+                    matched_name = None
+                    matched_addr = None
+                    for addr, name in (redirected_map or {}).items():
+                        if addr.strip().lower() in routing_headers:
+                            matched_name = name
+                            matched_addr = addr.strip()
                             break
 
-                    sub_low = subject.lower()
-                    if any(w in sub_low for w in ["sprzedan", "sprzedał", "kupił", "kupiono", "etykiet", "nadaj"]):
-                        icon = "💰 SPRZEDANE!"
-                    elif any(w in sub_low for w in ["ofert", "proponuje"]):
-                        icon = "🏷️ NOWA OFERTA!"
+                    if matched_name:
+                        profile_label = f"{matched_name} ({matched_addr})"
                     else:
-                        icon = "💬 WIADOMOŚĆ / INFO"
+                        profile_label = "Nieznany profil (inbox.lv)"
 
-                    alert = f"{icon}\n👤 Profil: {matched_label}\n📧 Mail: {matched_mail}\n📌 Temat: {subject}"
-                    send_telegram(tg_token, tg_chat_id, alert)
-                    mail.store(num, "+FLAGS", "\\Seen")
-                    found_count += 1
+                snippet = body[:350] + ("..." if len(body) > 350 else "")
+                found_messages.append({
+                    "profile": profile_label,
+                    "sender": sender,
+                    "subject": subject or "(Brak tematu)",
+                    "snippet": snippet or "(Brak treści tekstowej)",
+                })
 
-        mail.logout()
+                mail.store(num, "+FLAGS", "\\Seen")
+    finally:
+        try:
+            mail.logout()
+        except Exception:
+            pass
 
-        if event_name == "workflow_dispatch":
-            send_telegram(
-                tg_token,
-                tg_chat_id,
-                f"✅ Połączono ze skrzynką zbiorczą ({collector_email})!\nAktywna lista kont: {len(konta_map)}.\nNowe powiadomienia Vinted: {found_count}."
+    return found_messages
+
+
+def main():
+    token = os.environ.get("TELEGRAM_TOKEN", "").strip()
+    chat_id = (os.environ.get("TELEGRAM_CHAT_ID") or os.environ.get("CHAT_ID") or "").strip()
+    accounts_raw = os.environ.get("ACCOUNTS_JSON", "").strip()
+    event_name = os.environ.get("GITHUB_EVENT_NAME", "").strip()
+
+    if not token or not chat_id or not accounts_raw:
+        raise RuntimeError("Brakuje jednego z sekretów: TELEGRAM_TOKEN, TELEGRAM_CHAT_ID lub ACCOUNTS_JSON.")
+
+    config = json.loads(accounts_raw)
+    collector_email = config.get("collector_email", "").strip()
+    collector_pass = config.get("collector_haslo", "")
+    redirected_accounts = config.get("konta", {})
+    direct_imap_accounts = config.get("direct_imap", {})
+
+    all_new_messages = []
+    login_errors = []
+    active_redirected = 0
+    active_direct = 0
+
+    if collector_email and collector_pass and redirected_accounts:
+        try:
+            msgs = scan_mailbox(
+                host="mail.inbox.lv",
+                login_email=collector_email,
+                password=collector_pass,
+                redirected_map=redirected_accounts,
             )
-    except Exception as e:
-        print("Błąd logowania do skrzynki zbiorczej:", e)
-        if event_name == "workflow_dispatch":
-            send_telegram(tg_token, tg_chat_id, f"⚠️ Błąd logowania do skrzynki zbiorczej:\n{e}")
+            all_new_messages.extend(msgs)
+            active_redirected = len(redirected_accounts)
+        except Exception as exc:
+            login_errors.append(f"• Agregator ({collector_email}): {exc}")
+
+    for addr, details in direct_imap_accounts.items():
+        clean_addr = addr.strip()
+        passwd = details.get("haslo", "")
+        label = details.get("nazwa", clean_addr)
+        domain = clean_addr.split("@")[-1].lower() if "@" in clean_addr else ""
+        imap_host = details.get("imap_server") or IMAP_SERVERS.get(domain)
+
+        if not imap_host:
+            login_errors.append(f"• {label} ({clean_addr}): nieznany serwer IMAP dla domeny {domain}")
+            continue
+
+        try:
+            msgs = scan_mailbox(
+                host=imap_host,
+                login_email=clean_addr,
+                password=passwd,
+                single_profile=label,
+            )
+            all_new_messages.extend(msgs)
+            active_direct += 1
+        except Exception as exc:
+            login_errors.append(f"• {label} ({clean_addr}): {exc}")
+
+    for item in all_new_messages:
+        alert = (
+            f"🛍️ <b>Nowa wiadomość Vinted!</b>\n"
+            f"👤 <b>Profil:</b> {html.escape(item['profile'])}\n"
+            f"✉️ <b>Od:</b> {html.escape(item['sender'])}\n"
+            f"📌 <b>Temat:</b> {html.escape(item['subject'])}\n"
+            f"📝 <b>Treść:</b> {html.escape(item['snippet'])}"
+        )
+        send_telegram(token, chat_id, alert)
+
+    if event_name == "workflow_dispatch" or all_new_messages or login_errors:
+        total_active = active_redirected + active_direct
+        summary_lines = [
+            "✅ <b>Skanowanie zakończone!</b>",
+            f"📊 Aktywne konta: <b>{total_active}</b> (przekierowane: {active_redirected}, direct IMAP: {active_direct})",
+            f"📬 Nowe powiadomienia Vinted: <b>{len(all_new_messages)}</b>",
+        ]
+        if login_errors:
+            summary_lines.append("\n⚠️ <b>Błędy logowania:</b>")
+            summary_lines.extend(html.escape(err) for err in login_errors)
+
+        send_telegram(token, chat_id, "\n".join(summary_lines))
+
 
 if __name__ == "__main__":
     main()
