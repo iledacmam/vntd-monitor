@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
+  repository_dispatch:
+    types: [tg_command]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vinted-monitor-lock
+  cancel-in-progress: false
 
 jobs:
   check_mails:
@@ -12,10 +21,18 @@ jobs:
       - name: Pobierz kod
         uses: actions/checkout@v4
 
-      - name: Uruchom skrypt sprawdzający pocztę
+      - name: Uruchom skrypt sprawdzający pocztę i zadania
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           ACCOUNTS_JSON: ${{ secrets.ACCOUNTS_JSON }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
+          CLIENT_COMMAND: ${{ github.event.client_payload.command }}
         run: python3 monitor.py
+
+      - name: Zapisz listę zadań (tasks.json)
+        run: |
+          git config user.name "Vinted Monitor Bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add tasks.json
+          git diff --staged --quiet || (git commit -m "Update tasks.json" && git pull --rebase && git push)
