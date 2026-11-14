@@ -120,10 +120,15 @@ def extract_body(msg):
 
     if plain_parts:
         raw = "\n".join(plain_parts)
-        return re.sub(r"\s+", " ", raw).strip()
-    if html_parts:
-        return clean_html_to_text("\n".join(html_parts))
-    return ""
+        cleaned = re.sub(r"\s+", " ", raw).strip()
+    elif html_parts:
+        cleaned = clean_html_to_text("\n".join(html_parts))
+    else:
+        return ""
+
+    # Wycięcie stałej stopki prawnej Vinted na końcu wiadomości
+    cleaned = re.split(r"Ten e-mail został wysłany przez Vinted", cleaned, flags=re.IGNORECASE)[0].strip()
+    return cleaned
 
 
 def get_folders_to_scan(mail):
@@ -165,14 +170,16 @@ def is_ignored_noise(subject):
     return any(phrase in lower_subject for phrase in IGNORED_SUBJECTS)
 
 
-def classify_alert_header(subject):
+def classify_alert_header(subject, body):
     s = subject.lower()
-    if any(k in s for k in ("sprzedał", "zamówieni", "etykiet", "przesyłk", "środki", "płatnoś")):
-        return "💰 <b>SPRZEDAŻ / ZAMÓWIENIE VINTED</b>"
-    if any(k in s for k in ("wiadomoś", "ofert", "odpowiedź")):
-        return "💬 <b>WIADOMOŚĆ / OFERTA VINTED</b>"
-    if any(k in s for k in ("kod", "weryfikac", "blokad", "ukryt", "usunięt", "ostrzeż", "zawieszon")):
-        return "🚨 <b>ALERT KONTA VINTED</b>"
+    b = body.lower()
+
+    if "twój przedmiot został sprzedany" in s or ("kupił(a)" in b and "chce kupić" not in b):
+        return "<b>SPRZEDANE ! 💶</b>"
+
+    if "nowa oferta" in s or "chce kupić od ciebie" in b or "w niższej cenie" in b:
+        return "<b>PROPOZYCJA CENY 🏷️</b>"
+
     return "🛍️ <b>Nowa wiadomość Vinted!</b>"
 
 
@@ -206,7 +213,6 @@ def scan_mailbox(host, login_email, password, redirected_map=None, single_profil
                 if not is_vinted_message(sender, subject, body):
                     continue
 
-                # Oznacz jako przeczytane w skrzynce niezależnie od tego, czy to spam
                 mail.store(num, "+FLAGS", "\\Seen")
 
                 if is_ignored_noise(subject):
@@ -238,7 +244,7 @@ def scan_mailbox(host, login_email, password, redirected_map=None, single_profil
 
                 snippet = body[:350] + ("..." if len(body) > 350 else "")
                 found_messages.append({
-                    "header": classify_alert_header(subject),
+                    "header": classify_alert_header(subject, body),
                     "profile": profile_label,
                     "subject": subject or "(Brak tematu)",
                     "snippet": snippet or "(Brak treści tekstowej)",
