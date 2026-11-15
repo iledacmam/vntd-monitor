@@ -68,6 +68,22 @@ MONTHS_EN = (
 
 TYPE_ORDER = {"pakowanie": 0, "oferta": 1, "wiadomosc": 2}
 
+FOLDER_KEYWORDS = (
+    "spam",
+    "junk",
+    "inne",
+    "oferty",
+    "powiadomienia",
+    "społeczności",
+    "spolecznosci",
+    "spo&aui-eczno",
+    "newsletter",
+    "other",
+    "promotions",
+    "social",
+    "updates",
+)
+
 
 def now_warsaw_str():
     return datetime.now(WARSAW_TZ).strftime("%d.%m %H:%M")
@@ -178,11 +194,21 @@ def get_folders_to_scan(mail):
         for item in folder_list:
             if not item:
                 continue
-            line = item.decode("utf-8", errors="replace")
-            match = re.search(r'"([^"]+)"\s*$', line)
-            folder_name = match.group(1) if match else line.split()[-1].strip('"')
+            line = item.decode("utf-8", errors="replace").strip()
+            m = re.match(r'^\(([^)]*)\)\s+(?:"[^"]*"|NIL|\S+)\s+(.+)$', line)
+            if m:
+                flags = m.group(1).lower()
+                if "\\noselect" in flags:
+                    continue
+                folder_name = m.group(2).strip()
+                if folder_name.startswith('"') and folder_name.endswith('"'):
+                    folder_name = folder_name[1:-1]
+            else:
+                match = re.search(r'"([^"]+)"\s*$', line)
+                folder_name = match.group(1) if match else line.split()[-1].strip('"')
+
             lower_name = folder_name.lower()
-            if ("spam" in lower_name or "junk" in lower_name) and folder_name not in folders:
+            if any(kw in lower_name for kw in FOLDER_KEYWORDS) and folder_name not in folders:
                 folders.append(folder_name)
     return folders
 
@@ -281,7 +307,6 @@ def upsert_task(tasks, task_type, profile, buyer, item, price=""):
     item_n = norm_text(item)
 
     if task_type == "pakowanie":
-        # Jeśli kupujący wcześniej negocjował lub pisał o ten przedmiot, zamknij tamte zadania
         tasks = [
             t for t in tasks
             if not (
@@ -294,7 +319,6 @@ def upsert_task(tasks, task_type, profile, buyer, item, price=""):
             )
         ]
 
-    # Deduplikacja: aktualizuj istniejące zadanie tego samego typu na tym koncie
     for t in tasks:
         if (
             t.get("type") == task_type
@@ -331,7 +355,6 @@ def complete_packing_task(tasks, profile, item):
                 continue
         new_tasks.append(t)
 
-    # Fallback: jeśli nazwa lekko się różniła, zdejmij najstarsze pakowanie z tego profilu
     if not removed:
         new_tasks = []
         for t in tasks:
@@ -409,7 +432,6 @@ def handle_client_command(command, token, chat_id):
         send_telegram(token, chat_id, header + format_tasks_message(remaining))
         return
 
-    # Domyślnie dla /zadania, /lista, /start, /help
     send_telegram(token, chat_id, format_tasks_message(tasks))
 
 
@@ -420,7 +442,8 @@ def scan_mailbox(host, login_email, password, tasks, redirected_map=None, single
     try:
         mail.login(login_email, password)
         for folder in get_folders_to_scan(mail):
-            status, _ = mail.select(f'"{folder}"')
+            safe_folder = folder.replace('"', '\\"')
+            status, _ = mail.select(f'"{safe_folder}"')
             if status != "OK":
                 continue
 
@@ -472,14 +495,12 @@ def scan_mailbox(host, login_email, password, tasks, redirected_map=None, single
 
                     profile_label = f"{matched_name} ({matched_addr})" if matched_name else "Nieznany profil (inbox.lv)"
 
-                # 1. Etykieta wysyłkowa wygenerowana -> auto-odhacz pakowanie, bez spamowania Telegrama
                 if "etykieta wysyłkowa" in lower_subject or "twoja etykieta wysyłkowa jest załączona" in lower_body:
                     item_title = extract_label_item(subject, body)
                     if not is_warmup_item(item_title, subject):
                         tasks = complete_packing_task(tasks, profile_label, item_title)
                     continue
 
-                # 2. Sprzedaż
                 if "twój przedmiot został sprzedany" in lower_subject or ("kupił(a)" in lower_body and "chce kupić" not in lower_body):
                     buyer, item_title, price = extract_sale_details(body)
                     if is_warmup_item(item_title, subject):
@@ -487,7 +508,6 @@ def scan_mailbox(host, login_email, password, tasks, redirected_map=None, single
                     tasks = upsert_task(tasks, "pakowanie", profile_label, buyer, item_title, price)
                     header = "<b>SPRZEDANE ! 💶</b>"
 
-                # 3. Propozycja ceny
                 elif "nowa oferta" in lower_subject or "chce kupić od ciebie" in lower_body or "w niższej cenie" in lower_body:
                     buyer, item_title, price = extract_offer_details(subject, body)
                     if is_warmup_item(item_title, subject):
@@ -495,7 +515,6 @@ def scan_mailbox(host, login_email, password, tasks, redirected_map=None, single
                     tasks = upsert_task(tasks, "oferta", profile_label, buyer, item_title, price)
                     header = "<b>PROPOZYCJA CENY 🏷️</b>"
 
-                # 4. Zwykła wiadomość lub alert konta
                 else:
                     buyer, item_title = extract_message_details(subject, body)
                     if is_warmup_item(item_title, subject):
@@ -531,7 +550,6 @@ def main():
     if not token or not chat_id:
         raise RuntimeError("Brakuje sekretu TELEGRAM_TOKEN lub TELEGRAM_CHAT_ID.")
 
-    # Natychmiastowa obsługa komendy z Telegrama (/zadania, /done1, /wyczysc)
     if client_command:
         handle_client_command(client_command, token, chat_id)
         return
