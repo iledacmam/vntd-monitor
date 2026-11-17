@@ -1,30 +1,6 @@
 {
   "tasks": [
     {
-      "type": "wiadomosc",
-      "profile": "Konto 02 (kfrmbe@gmail.com)",
-      "buyer": "timaantonsson",
-      "item": "Torebka Ferragamo Hug czarna",
-      "price": "",
-      "created_at": "17.11 18:51"
-    },
-    {
-      "type": "wiadomosc",
-      "profile": "Konto 02 (kfrmbe@gmail.com)",
-      "buyer": "z.hora",
-      "item": "Torebka Ferragamo Hug czarna",
-      "price": "",
-      "created_at": "17.11 18:51"
-    },
-    {
-      "type": "wiadomosc",
-      "profile": "Konto 03 (xcnsod12@gmail.com)",
-      "buyer": "morebeach",
-      "item": "Torba Toteme T Lock",
-      "price": "",
-      "created_at": "17.11 18:51"
-    },
-    {
       "type": "oferta",
       "profile": "Konto 07 (ideallinn@outlook.com)",
       "buyer": "maare15",
@@ -65,14 +41,6 @@
       "created_at": "17.11 18:51"
     },
     {
-      "type": "wiadomosc",
-      "profile": "Konto 07 (ideallinn@outlook.com)",
-      "buyer": "ilinca.m85",
-      "item": "Acne studios bag musubi",
-      "price": "",
-      "created_at": "17.11 18:51"
-    },
-    {
       "type": "oferta",
       "profile": "Konto 09 (aurelianoram@outlook.com)",
       "buyer": "ebbawallin11",
@@ -86,14 +54,6 @@
       "buyer": "jeanetrosenkj",
       "item": "Torebka Toteme T-Lock small",
       "price": "582.47 zł zamiast 950.00 zł",
-      "created_at": "17.11 18:51"
-    },
-    {
-      "type": "wiadomosc",
-      "profile": "Konto 09 (aurelianoram@outlook.com)",
-      "buyer": "ryszardkobiela77",
-      "item": "ba&sh sweter w wzorki",
-      "price": "",
       "created_at": "17.11 18:51"
     },
     {
@@ -118,6 +78,46 @@
       "buyer": "gaby2728",
       "item": "Acne studios multipocket",
       "price": "1,174.38 zł zamiast 1,450.00 zł",
+      "created_at": "17.11 18:51"
+    },
+    {
+      "type": "wiadomosc",
+      "profile": "Konto 02 (kfrmbe@gmail.com)",
+      "buyer": "timaantonsson",
+      "item": "Torebka Ferragamo Hug czarna",
+      "price": "",
+      "created_at": "17.11 18:51"
+    },
+    {
+      "type": "wiadomosc",
+      "profile": "Konto 02 (kfrmbe@gmail.com)",
+      "buyer": "z.hora",
+      "item": "Torebka Ferragamo Hug czarna",
+      "price": "",
+      "created_at": "17.11 18:51"
+    },
+    {
+      "type": "wiadomosc",
+      "profile": "Konto 03 (xcnsod12@gmail.com)",
+      "buyer": "morebeach",
+      "item": "Torba Toteme T Lock",
+      "price": "",
+      "created_at": "17.11 18:51"
+    },
+    {
+      "type": "wiadomosc",
+      "profile": "Konto 07 (ideallinn@outlook.com)",
+      "buyer": "ilinca.m85",
+      "item": "Acne studios bag musubi",
+      "price": "",
+      "created_at": "17.11 18:51"
+    },
+    {
+      "type": "wiadomosc",
+      "profile": "Konto 09 (aurelianoram@outlook.com)",
+      "buyer": "ryszardkobiela77",
+      "item": "ba&sh sweter w wzorki",
+      "price": "",
       "created_at": "17.11 18:51"
     },
     {
