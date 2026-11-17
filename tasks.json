@@ -1,3 +1,20 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "type": "oferta",
+      "profile": "Konto 01 (elakonradowicz1@gmail.com)",
+      "buyer": "aysez",
+      "item": "Torebka Toteme T czarna",
+      "price": "920.15 zł zamiast 1,250.00 zł",
+      "created_at": "17.11 20:32"
+    },
+    {
+      "type": "oferta",
+      "profile": "Konto 07 (ideallinn@outlook.com)",
+      "buyer": "sasha8424",
+      "item": "Torba Toteme T-lock duża",
+      "price": "945.60 zł zamiast 1,290.00 zł",
+      "created_at": "17.11 20:32"
+    }
+  ]
 }
