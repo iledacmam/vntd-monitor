@@ -1,38 +1,6 @@
 {
   "tasks": [
     {
-      "type": "oferta",
-      "profile": "Konto 01 (elakonradowicz1@gmail.com)",
-      "buyer": "surkens",
-      "item": "Torebka Toteme T czarna",
-      "price": "784.13 zł zamiast 1,250.00 zł",
-      "created_at": "17.11 18:51"
-    },
-    {
-      "type": "oferta",
-      "profile": "Konto 01 (elakonradowicz1@gmail.com)",
-      "buyer": "trknt",
-      "item": "Torebka Toteme T czarna",
-      "price": "1,000,00 zł zamiast 1,250,00 zł",
-      "created_at": "17.11 18:51"
-    },
-    {
-      "type": "wiadomosc",
-      "profile": "Konto 01 (elakonradowicz1@gmail.com)",
-      "buyer": "veronicakaleta",
-      "item": "Torebka Toteme T czarna",
-      "price": "",
-      "created_at": "17.11 18:51"
-    },
-    {
-      "type": "wiadomosc",
-      "profile": "Konto 01 (elakonradowicz1@gmail.com)",
-      "buyer": "liist123",
-      "item": "Torebka Toteme T czarna",
-      "price": "",
-      "created_at": "17.11 18:51"
-    },
-    {
       "type": "wiadomosc",
       "profile": "Konto 02 (kfrmbe@gmail.com)",
       "buyer": "timaantonsson",
