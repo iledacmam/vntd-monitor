@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime, timedelta, timezone
 import email
 from email.header import decode_header
@@ -7,6 +8,8 @@ import json
 import os
 import re
 import socket
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from zoneinfo import ZoneInfo
@@ -98,22 +101,96 @@ def get_imap_since_date(days_back=2):
     return f"{dt.day:02d}-{MONTHS_EN[dt.month - 1]}-{dt.year}"
 
 
-def load_tasks():
-    if not os.path.exists(TASKS_FILE):
-        return []
-    try:
+def sort_tasks_list(tasks):
+    return sorted(
+        tasks,
+        key=lambda t: (
+            str(t.get("profile", "")).lower(),
+            TYPE_ORDER.get(t.get("type", ""), 9),
+            str(t.get("created_at", "")),
+        ),
+    )
+
+
+def github_get_tasks(repo, gh_token):
+    url = f"https://api.github.com/repos/{repo}/contents/{TASKS_FILE}"
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {gh_token}",
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "Vinted-Monitor-Bot",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    raw_content = base64.b64decode(data["content"]).decode("utf-8")
+    parsed = json.loads(raw_content)
+    tasks = parsed.get("tasks", []) if isinstance(parsed, dict) else parsed
+    return tasks, data["sha"]
+
+
+def github_put_tasks(repo, gh_token, tasks, sha, message="Update tasks.json"):
+    url = f"https://api.github.com/repos/{repo}/contents/{TASKS_FILE}"
+    payload_str = json.dumps({"tasks": sort_tasks_list(tasks)}, ensure_ascii=False, indent=2)
+    b64_content = base64.b64encode(payload_str.encode("utf-8")).decode("ascii")
+    body = json.dumps({
+        "message": message,
+        "content": b64_content,
+        "sha": sha,
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=body,
+        method="PUT",
+        headers={
+            "Authorization": f"Bearer {gh_token}",
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "Vinted-Monitor-Bot",
+            "Content-Type": "application/json",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        resp.read()
+
+
+def apply_events_and_save(events):
+    if not events:
+        return
+
+    repo = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    gh_token = os.environ.get("GITHUB_TOKEN", "").strip()
+
+    if repo and gh_token:
+        for attempt in range(4):
+            try:
+                tasks, sha = github_get_tasks(repo, gh_token)
+                for ev in events:
+                    if ev[0] == "complete_packing":
+                        tasks = complete_packing_task(tasks, ev[1], ev[2])
+                    elif ev[0] == "upsert":
+                        tasks = upsert_task(tasks, ev[1], ev[2], ev[3], ev[4], ev[5])
+                github_put_tasks(repo, gh_token, tasks, sha)
+                return
+            except urllib.error.HTTPError as e:
+                if e.code == 409 and attempt < 3:
+                    time.sleep(0.6)
+                    continue
+                raise
+
+    # Fallback lokalny (gdyby uruchamiano poza GitHub Actions)
+    tasks = []
+    if os.path.exists(TASKS_FILE):
         with open(TASKS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            return data.get("tasks", []) if isinstance(data, dict) else []
-    except Exception:
-        return []
-
-
-def save_tasks(tasks):
-    sorted_tasks = sorted(tasks, key=lambda t: TYPE_ORDER.get(t.get("type", ""), 9))
+            tasks = data.get("tasks", []) if isinstance(data, dict) else []
+    for ev in events:
+        if ev[0] == "complete_packing":
+            tasks = complete_packing_task(tasks, ev[1], ev[2])
+        elif ev[0] == "upsert":
+            tasks = upsert_task(tasks, ev[1], ev[2], ev[3], ev[4], ev[5])
     with open(TASKS_FILE, "w", encoding="utf-8") as f:
-        json.dump({"tasks": sorted_tasks}, f, ensure_ascii=False, indent=2)
-    return sorted_tasks
+        json.dump({"tasks": sort_tasks_list(tasks)}, f, ensure_ascii=False, indent=2)
 
 
 def decode_mime_str(value):
@@ -241,8 +318,10 @@ def is_warmup_item(item_title, fallback_subject=""):
 
 
 def extract_sale_details(body):
+    curr = r"(?:zł|PLN|EUR|€)"
+    amt = rf"(?:{curr}\s*\d[\d\s,.]*|\d[\d\s,.]*\s*{curr})"
     m = re.search(
-        r"([a-zA-Z0-9._-]+)\s+kupił\(a\)\s+(.+?)\s+(\d[\d\s,.]*\s*(?:zł|PLN|EUR|€))",
+        rf"([a-zA-Z0-9._-]+)\s+kupił\(a\)\s+(.+?)\s+({amt})",
         body,
         flags=re.IGNORECASE,
     )
@@ -264,8 +343,10 @@ def extract_offer_details(subject, body):
         if body_m:
             item = body_m.group(1).strip()
 
+    curr = r"(?:zł|PLN|EUR|€)"
+    amt = rf"(?:{curr}\s*\d[\d\s,.]*|\d[\d\s,.]*\s*{curr})"
     price_m = re.search(
-        r"Nowa oferta:\s*(\d[\d\s,.]*\s*(?:zł|PLN|EUR|€)(?:\s*zamiast\s*\d[\d\s,.]*\s*(?:zł|PLN|EUR|€))?)",
+        rf"Nowa oferta:\s*({amt}(?:\s*zamiast\s*{amt})?)",
         body,
         flags=re.IGNORECASE,
     )
@@ -370,77 +451,9 @@ def complete_packing_task(tasks, profile, item):
     return new_tasks
 
 
-def format_tasks_message(tasks):
-    if not tasks:
-        return "✨ <b>Lista zadań jest pusta!</b>\nNie masz żadnych zaległych wiadomości, ofert ani paczek do wygenerowania."
-
-    sorted_tasks = sorted(tasks, key=lambda t: TYPE_ORDER.get(t.get("type", ""), 9))
-    sections = {
-        "pakowanie": ("📦 <b>DO SPAKOWANIA / ETYKIETY:</b>", []),
-        "oferta": ("🏷️ <b>OFERTY DO POTWIERDZENIA:</b>", []),
-        "wiadomosc": ("💬 <b>WIADOMOŚCI DO ODPISANIA:</b>", []),
-    }
-
-    for idx, t in enumerate(sorted_tasks, start=1):
-        t_type = t.get("type", "wiadomosc")
-        profile = html.escape(t.get("profile", ""))
-        buyer = html.escape(t.get("buyer", ""))
-        item = html.escape(t.get("item", ""))
-        price = html.escape(t.get("price", ""))
-        ts = html.escape(t.get("created_at", ""))
-
-        price_part = f" — <b>{price}</b>" if price else ""
-        line = (
-            f"<b>{idx}.</b> [{profile}] <b>{item}</b>{price_part}\n"
-            f"    └ 👤 <code>{buyer}</code> <i>({ts})</i> ➔ /done{idx}"
-        )
-        sections.setdefault(t_type, ("📌 <b>INNE:</b>", []))[1].append(line)
-
-    out = ["📋 <b>TWOJA LISTA ZADAŃ VINTED:</b>\n"]
-    for key in ("pakowanie", "oferta", "wiadomosc"):
-        title, lines = sections[key]
-        if lines:
-            out.append(title)
-            out.extend(lines)
-            out.append("")
-
-    out.append("💡 <i>Odhacz: <code>/done1</code>, <code>/done1 2</code> lub <code>/wyczysc</code></i>")
-    return "\n".join(out).strip()
-
-
-def handle_client_command(command, token, chat_id):
-    cmd = command.strip()
-    lower = cmd.lower()
-    tasks = save_tasks(load_tasks())
-
-    if lower.startswith("/wyczysc") or lower in ("/done all", "/doneall"):
-        save_tasks([])
-        send_telegram(token, chat_id, "🧹 <b>Wyczyszczono wszystkie zadania!</b>")
-        return
-
-    if lower.startswith("/done"):
-        nums = [int(n) for n in re.findall(r"\d+", lower)]
-        if not nums:
-            send_telegram(token, chat_id, "⚠️ Podaj numer zadania, np. <code>/done1</code> lub <code>/done1 2</code>.")
-            return
-
-        valid_indices = {n - 1 for n in nums if 1 <= n <= len(tasks)}
-        if not valid_indices:
-            send_telegram(token, chat_id, f"⚠️ Nie ma zadania o tym numerze (obecnie masz {len(tasks)} zadań).")
-            return
-
-        remaining = [t for i, t in enumerate(tasks) if i not in valid_indices]
-        remaining = save_tasks(remaining)
-        done_str = ", ".join(f"#{n}" for n in sorted(nums) if 1 <= n <= len(tasks))
-        header = f"✅ <b>Odhaczono: {done_str}</b>\n\n"
-        send_telegram(token, chat_id, header + format_tasks_message(remaining))
-        return
-
-    send_telegram(token, chat_id, format_tasks_message(tasks))
-
-
-def scan_mailbox(host, login_email, password, tasks, redirected_map=None, single_profile=None):
+def scan_mailbox(host, login_email, password, redirected_map=None, single_profile=None):
     found_messages = []
+    events = []
     since_date = get_imap_since_date(days_back=2)
     mail = imaplib.IMAP4_SSL(host, 993)
     try:
@@ -502,21 +515,21 @@ def scan_mailbox(host, login_email, password, tasks, redirected_map=None, single
                 if "etykieta wysyłkowa" in lower_subject or "twoja etykieta wysyłkowa jest załączona" in lower_body:
                     item_title = extract_label_item(subject, body)
                     if not is_warmup_item(item_title, subject):
-                        tasks = complete_packing_task(tasks, profile_label, item_title)
+                        events.append(("complete_packing", profile_label, item_title))
                     continue
 
                 if "twój przedmiot został sprzedany" in lower_subject or ("kupił(a)" in lower_body and "chce kupić" not in lower_body):
                     buyer, item_title, price = extract_sale_details(body)
                     if is_warmup_item(item_title, subject):
                         continue
-                    tasks = upsert_task(tasks, "pakowanie", profile_label, buyer, item_title, price)
+                    events.append(("upsert", "pakowanie", profile_label, buyer, item_title, price))
                     header = "<b>SPRZEDANE ! 💶</b>"
 
                 elif "nowa oferta" in lower_subject or "chce kupić od ciebie" in lower_body or "w niższej cenie" in lower_body:
                     buyer, item_title, price = extract_offer_details(subject, body)
                     if is_warmup_item(item_title, subject):
                         continue
-                    tasks = upsert_task(tasks, "oferta", profile_label, buyer, item_title, price)
+                    events.append(("upsert", "oferta", profile_label, buyer, item_title, price))
                     header = "<b>PROPOZYCJA CENY 🏷️</b>"
 
                 else:
@@ -524,7 +537,7 @@ def scan_mailbox(host, login_email, password, tasks, redirected_map=None, single
                     if is_warmup_item(item_title, subject):
                         continue
                     if "nowa wiadomość" in lower_subject or "przesyła ci wiadomość" in lower_body:
-                        tasks = upsert_task(tasks, "wiadomosc", profile_label, buyer, item_title)
+                        events.append(("upsert", "wiadomosc", profile_label, buyer, item_title, ""))
                     header = "🛍️ <b>Nowa wiadomość Vinted!</b>"
 
                 snippet = body[:350] + ("..." if len(body) > 350 else "")
@@ -541,7 +554,7 @@ def scan_mailbox(host, login_email, password, tasks, redirected_map=None, single
         except Exception:
             pass
 
-    return found_messages, tasks
+    return found_messages, events
 
 
 def main():
@@ -549,14 +562,9 @@ def main():
     chat_id = (os.environ.get("TELEGRAM_CHAT_ID") or os.environ.get("CHAT_ID") or "").strip()
     accounts_raw = os.environ.get("ACCOUNTS_JSON", "").strip()
     event_name = os.environ.get("GITHUB_EVENT_NAME", "").strip()
-    client_command = os.environ.get("CLIENT_COMMAND", "").strip()
 
     if not token or not chat_id:
         raise RuntimeError("Brakuje sekretu TELEGRAM_TOKEN lub TELEGRAM_CHAT_ID.")
-
-    if client_command and not client_command.strip().lower().startswith("/skan"):
-        handle_client_command(client_command, token, chat_id)
-        return
 
     if not accounts_raw:
         raise RuntimeError("Brakuje sekretu ACCOUNTS_JSON.")
@@ -567,22 +575,22 @@ def main():
     redirected_accounts = config.get("konta", {})
     direct_imap_accounts = config.get("direct_imap", {})
 
-    tasks = load_tasks()
     all_new_messages = []
+    all_events = []
     login_errors = []
     active_redirected = 0
     active_direct = 0
 
     if collector_email and collector_pass and redirected_accounts:
         try:
-            msgs, tasks = scan_mailbox(
+            msgs, evs = scan_mailbox(
                 host="mail.inbox.lv",
                 login_email=collector_email,
                 password=collector_pass,
-                tasks=tasks,
                 redirected_map=redirected_accounts,
             )
             all_new_messages.extend(msgs)
+            all_events.extend(evs)
             active_redirected = len(redirected_accounts)
         except Exception as exc:
             login_errors.append(f"• Agregator ({collector_email}): {exc}")
@@ -599,19 +607,19 @@ def main():
             continue
 
         try:
-            msgs, tasks = scan_mailbox(
+            msgs, evs = scan_mailbox(
                 host=imap_host,
                 login_email=clean_addr,
                 password=passwd,
-                tasks=tasks,
                 single_profile=label,
             )
             all_new_messages.extend(msgs)
+            all_events.extend(evs)
             active_direct += 1
         except Exception as exc:
             login_errors.append(f"• {label} ({clean_addr}): {exc}")
 
-    save_tasks(tasks)
+    apply_events_and_save(all_events)
 
     for item in all_new_messages:
         buyer_line = f"🛒 <b>Kupujący:</b> <code>{html.escape(item['buyer'])}</code>\n" if item.get("buyer") else ""
