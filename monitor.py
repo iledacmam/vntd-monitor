@@ -71,6 +71,7 @@ TYPE_ORDER = {"pakowanie": 0, "oferta": 1, "wiadomosc": 2}
 FOLDER_KEYWORDS = (
     "spam",
     "junk",
+    "lists",
     "inne",
     "oferty",
     "powiadomienia",
@@ -233,7 +234,7 @@ def is_vinted_message(sender, subject, body):
 
 def is_warmup_item(item_title, fallback_subject=""):
     target = (item_title or fallback_subject).lower()
-    return any(brand in target for brand in IGNORED_ITEMS)
+    return any(re.search(rf"\b{re.escape(brand)}\b", target) for brand in IGNORED_ITEMS)
 
 
 def extract_sale_details(body):
@@ -550,7 +551,7 @@ def main():
     if not token or not chat_id:
         raise RuntimeError("Brakuje sekretu TELEGRAM_TOKEN lub TELEGRAM_CHAT_ID.")
 
-    if client_command:
+    if client_command and not client_command.strip().lower().startswith("/skan"):
         handle_client_command(client_command, token, chat_id)
         return
 
@@ -620,7 +621,7 @@ def main():
         )
         send_telegram(token, chat_id, alert)
 
-    if event_name == "workflow_dispatch" or all_new_messages or login_errors:
+    if event_name in ("workflow_dispatch", "repository_dispatch") or all_new_messages or login_errors:
         total_active = active_redirected + active_direct
         summary_lines = [
             "✅ <b>Skanowanie zakończone!</b>",
