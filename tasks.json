@@ -42,6 +42,14 @@
     },
     {
       "type": "wiadomosc",
+      "profile": "Konto 07 (ideallinn@outlook.com)",
+      "buyer": "ellen_hellen",
+      "item": "Torba Lemaire Croissant",
+      "price": "",
+      "created_at": "18.11 14:55"
+    },
+    {
+      "type": "wiadomosc",
       "profile": "Konto 09 (aurelianoram@outlook.com)",
       "buyer": "jinkwo",
       "item": "Torebka Toteme T-Lock small",
