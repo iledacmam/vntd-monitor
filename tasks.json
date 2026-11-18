@@ -18,6 +18,14 @@
     },
     {
       "type": "oferta",
+      "profile": "Konto 01 (elakonradowicz1@gmail.com)",
+      "buyer": "surkens",
+      "item": "Torebka Toteme T czarna",
+      "price": "859.78 zł zamiast 1,250.00 zł",
+      "created_at": "18.11 13:40"
+    },
+    {
+      "type": "oferta",
       "profile": "Konto 07 (ideallinn@outlook.com)",
       "buyer": "katyas1703",
       "item": "Torba Toteme T-lock duża",
