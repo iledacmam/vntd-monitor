@@ -1,12 +1,3 @@
 {
-  "tasks": [
-    {
-      "type": "wiadomosc",
-      "profile": "Konto 09 (aurelianoram@outlook.com)",
-      "buyer": "jinkwo",
-      "item": "Torebka Toteme T-Lock small",
-      "price": "",
-      "created_at": "18.11 12:42"
-    }
-  ]
+  "tasks": []
 }
