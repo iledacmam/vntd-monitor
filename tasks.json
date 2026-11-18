@@ -7,6 +7,30 @@
       "item": "Torebka Toteme T czarna",
       "price": "977.02 zł zamiast 1,250.00 zł",
       "created_at": "18.11 21:26"
+    },
+    {
+      "type": "oferta",
+      "profile": "Konto 01 (elakonradowicz1@gmail.com)",
+      "buyer": "abbynamesx",
+      "item": "Torebka Toteme T czarna",
+      "price": "zł873.40 zamiast zł1,250.00",
+      "created_at": "18.11 23:13"
+    },
+    {
+      "type": "oferta",
+      "profile": "Konto 07 (ideallinn@outlook.com)",
+      "buyer": "abbynamesx",
+      "item": "Torba Toteme T-lock duża",
+      "price": "zł1,048.08 zamiast zł1,290.00",
+      "created_at": "18.11 23:13"
+    },
+    {
+      "type": "oferta",
+      "profile": "Konto 07 (ideallinn@outlook.com)",
+      "buyer": "kajsa-stinah",
+      "item": "Torba Toteme T-lock duża",
+      "price": "859.78 zł zamiast 1,290.00 zł",
+      "created_at": "18.11 23:13"
     }
   ]
 }
