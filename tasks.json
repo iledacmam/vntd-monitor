@@ -1,3 +1,12 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "type": "oferta",
+      "profile": "Konto 01 (elakonradowicz1@gmail.com)",
+      "buyer": "emma.dalbom",
+      "item": "Torebka Toteme T czarna",
+      "price": "977.02 zł zamiast 1,250.00 zł",
+      "created_at": "18.11 21:26"
+    }
+  ]
 }
