@@ -23,6 +23,22 @@
       "item": "Torba Toteme T-lock duża",
       "price": "zł774.66 zamiast zł1,290.00",
       "created_at": "18.11 11:47"
+    },
+    {
+      "type": "oferta",
+      "profile": "Konto 07 (ideallinn@outlook.com)",
+      "buyer": "majaaaace",
+      "item": "Torba Toteme T-lock duża",
+      "price": "1,055.18 zł zamiast 1,290.00 zł",
+      "created_at": "18.11 12:42"
+    },
+    {
+      "type": "wiadomosc",
+      "profile": "Konto 09 (aurelianoram@outlook.com)",
+      "buyer": "jinkwo",
+      "item": "Torebka Toteme T-Lock small",
+      "price": "",
+      "created_at": "18.11 12:42"
     }
   ]
 }
