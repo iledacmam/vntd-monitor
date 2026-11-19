@@ -18,6 +18,14 @@
     },
     {
       "type": "oferta",
+      "profile": "Konto 02 (kfrmbe@gmail.com)",
+      "buyer": "z.hora",
+      "item": "Torebka Ferragamo Hug czarna",
+      "price": "1,150,00 zł zamiast 1,250,00 zł",
+      "created_at": "19.11 07:40"
+    },
+    {
+      "type": "oferta",
       "profile": "Konto 07 (ideallinn@outlook.com)",
       "buyer": "abbynamesx",
       "item": "Torba Toteme T-lock duża",
