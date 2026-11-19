@@ -26,6 +26,14 @@
     },
     {
       "type": "oferta",
+      "profile": "Konto 01 (elakonradowicz1@gmail.com)",
+      "buyer": "brunaj14",
+      "item": "Torebka Toteme T czarna",
+      "price": "1,003.07 zł zamiast 1,250.00 zł",
+      "created_at": "19.11 23:15"
+    },
+    {
+      "type": "oferta",
       "profile": "Konto 02 (kfrmbe@gmail.com)",
       "buyer": "z.hora",
       "item": "Torebka Ferragamo Hug czarna",
