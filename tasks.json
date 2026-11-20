@@ -1,54 +1,6 @@
 {
   "tasks": [
     {
-      "type": "oferta",
-      "profile": "Konto 07 (ideallinn@outlook.com)",
-      "buyer": "abbynamesx",
-      "item": "Torba Toteme T-lock duża",
-      "price": "zł1,048.08 zamiast zł1,290.00",
-      "created_at": "18.11 23:13"
-    },
-    {
-      "type": "oferta",
-      "profile": "Konto 07 (ideallinn@outlook.com)",
-      "buyer": "kajsa-stinah",
-      "item": "Torba Toteme T-lock duża",
-      "price": "859.78 zł zamiast 1,290.00 zł",
-      "created_at": "18.11 23:13"
-    },
-    {
-      "type": "oferta",
-      "profile": "Konto 07 (ideallinn@outlook.com)",
-      "buyer": "brunaj14",
-      "item": "Torba Toteme T-lock duża",
-      "price": "1,003.07 zł zamiast 1,290.00 zł",
-      "created_at": "19.11 22:24"
-    },
-    {
-      "type": "oferta",
-      "profile": "Konto 07 (ideallinn@outlook.com)",
-      "buyer": "aysez",
-      "item": "Torba Toteme T-lock duża",
-      "price": "960.82 zł zamiast 1,290.00 zł",
-      "created_at": "20.11 14:51"
-    },
-    {
-      "type": "oferta",
-      "profile": "Konto 07 (ideallinn@outlook.com)",
-      "buyer": "mimmipihl",
-      "item": "Torba Toteme T-lock duża",
-      "price": "1,225.50 zł zamiast 1,290.00 zł",
-      "created_at": "20.11 19:30"
-    },
-    {
-      "type": "wiadomosc",
-      "profile": "Konto 07 (ideallinn@outlook.com)",
-      "buyer": "kasiulek1988",
-      "item": "Torba Toteme T-lock duża",
-      "price": "",
-      "created_at": "20.11 16:37"
-    },
-    {
       "type": "wiadomosc",
       "profile": "Konto 13 (mariaderano@outlook.com)",
       "buyer": "emma.dalbom",
