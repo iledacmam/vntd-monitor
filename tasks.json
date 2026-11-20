@@ -1,12 +1,3 @@
 {
-  "tasks": [
-    {
-      "type": "oferta",
-      "profile": "Konto 17 (dominikadudek2007@wp.pl)",
-      "buyer": "hetman88",
-      "item": "Torebka Loro Piana L32",
-      "price": "900,00 zł zamiast 1,300,00 zł",
-      "created_at": "19.11 00:49"
-    }
-  ]
+  "tasks": []
 }
