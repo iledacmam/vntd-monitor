@@ -65,6 +65,14 @@
       "created_at": "19.11 22:24"
     },
     {
+      "type": "oferta",
+      "profile": "Konto 07 (ideallinn@outlook.com)",
+      "buyer": "aysez",
+      "item": "Torba Toteme T-lock duża",
+      "price": "960.82 zł zamiast 1,290.00 zł",
+      "created_at": "20.11 14:51"
+    },
+    {
       "type": "wiadomosc",
       "profile": "Konto 13 (mariaderano@outlook.com)",
       "buyer": "emma.dalbom",
