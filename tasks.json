@@ -1,14 +1,6 @@
 {
   "tasks": [
     {
-      "type": "wiadomosc",
-      "profile": "Konto 13 (mariaderano@outlook.com)",
-      "buyer": "emma.dalbom",
-      "item": "torebka toteme T lock",
-      "price": "",
-      "created_at": "19.11 15:00"
-    },
-    {
       "type": "oferta",
       "profile": "Konto 17 (dominikadudek2007@wp.pl)",
       "buyer": "hetman88",
