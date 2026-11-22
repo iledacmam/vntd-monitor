@@ -15,6 +15,14 @@
       "item": "Torebka Loro Piana L32",
       "price": "zł745.13 zamiast zł1,300.00",
       "created_at": "21.11 00:30"
+    },
+    {
+      "type": "oferta",
+      "profile": "Konto 19 (patrycjawalczak20022@wp.pl)",
+      "buyer": "mv3004",
+      "item": "Torba Alaia le teckel",
+      "price": "660.55 zł zamiast 900.00 zł",
+      "created_at": "22.11 08:31"
     }
   ]
 }
