@@ -1,14 +1,6 @@
 {
   "tasks": [
     {
-      "type": "wiadomosc",
-      "profile": "Konto 02 (kfrmbe@gmail.com)",
-      "buyer": "z.hora",
-      "item": "Torebka Ferragamo Hug czarna",
-      "price": "",
-      "created_at": "23.11 18:48"
-    },
-    {
       "type": "oferta",
       "profile": "Konto 07 (ideallinn@outlook.com)",
       "buyer": "aysez",
