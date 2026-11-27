@@ -1,6 +1,14 @@
 {
   "tasks": [
     {
+      "type": "wiadomosc",
+      "profile": "Konto 05 (malgorzatamajdan@outlook.com)",
+      "buyer": "parshinagana",
+      "item": "Lemaire bag",
+      "price": "",
+      "created_at": "27.11 17:35"
+    },
+    {
       "type": "oferta",
       "profile": "Konto 07 (ideallinn@outlook.com)",
       "buyer": "aysez",
