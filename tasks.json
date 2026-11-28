@@ -1,6 +1,14 @@
 {
   "tasks": [
     {
+      "type": "oferta",
+      "profile": "Konto 02 (kfrmbe@gmail.com)",
+      "buyer": "kenystraus",
+      "item": "Torebka Ferragamo Hug czarna",
+      "price": "750.15 zł zamiast 1,250.00 zł",
+      "created_at": "28.11 14:44"
+    },
+    {
       "type": "wiadomosc",
       "profile": "Konto 05 (malgorzatamajdan@outlook.com)",
       "buyer": "parshinagana",
